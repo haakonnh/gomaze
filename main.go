@@ -22,7 +22,7 @@ func (g *Game) Update() error {
 var maze *Maze = InitMaze(63, 63)
 
 func (g *Game) Draw(screen *ebiten.Image) {
-	fmt.Println((ebiten.ActualFPS())) // fps tracker
+	//fmt.Println((ebiten.ActualFPS())) // fps tracker
 
 	// Size of each cell in pixels
 	cellSize := 5
@@ -133,6 +133,7 @@ func main() {
 	// Run Prim's algorithm in a separate goroutine
 	go func() {
 		maze.Prim()
+		fmt.Println("Kruskal done")
 		maze.DFS()
 		// Signal that Prim's algorithm has finished
 		close(done)

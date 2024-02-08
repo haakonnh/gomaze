@@ -4,6 +4,9 @@ import (
 	"fmt"
 	"math/rand"
 	"slices"
+	"time"
+
+	"github.com/spakin/disjoint"
 )
 
 type Wall struct {
@@ -19,6 +22,7 @@ type Cell struct {
 	Adjacent      []*Cell
 	WalkedThrough [4]bool // 0: top, 1: right, 2: bottom, 3: left
 	IsSearched    bool
+	KruskalSet    *disjoint.Element
 }
 
 type Maze struct {
@@ -124,6 +128,33 @@ func (maze *Maze) Prim() {
 
 }
 
+// Kruskal generates a maze using the Kruskal algorithm
+func (maze *Maze) Kruskal() {
+	possibleWalks := make([]Walk, 0)
+	for i := range maze.Cells {
+		for j := range maze.Cells[i] {
+			maze.Cells[i][j].KruskalSet = disjoint.NewElement()
+			for _, walkable := range maze.Cells[i][j].Adjacent {
+				possibleWalks = append(possibleWalks, Walk{From: maze.Cells[i][j], To: walkable})
+			}
+		}
+	}
+	for len(possibleWalks) > 0 {
+		//time.Sleep(time.Second / 100) // remove this line to not see visual generation
+		randIndex := rand.Intn(len(possibleWalks))
+		walk := possibleWalks[randIndex]
+		possibleWalks = append(possibleWalks[:randIndex], possibleWalks[randIndex+1:]...)
+		if walk.From.KruskalSet.Find() != walk.To.KruskalSet.Find() {
+			walk.To.Visited = true
+			walk.From.Visited = true
+			maze.Walks = append(maze.Walks, walk)
+			maze.Walks = append(maze.Walks, Walk{From: walk.To, To: walk.From})
+			disjoint.Union(walk.From.KruskalSet, walk.To.KruskalSet)
+
+		}
+	}
+}
+
 // DFS maze solver algorithm
 func (maze *Maze) DFS() {
 	// Choose the starting cell [0,0] and mark it as visite
@@ -135,12 +166,14 @@ func (maze *Maze) DFS() {
 	// Print if the maze was solved
 	if b {
 		fmt.Println("Solved")
+		return
 	}
+	fmt.Println("Not solved")
 }
 
 // Recursive function to solve the maze with dfs
 func recursiveSolve(maze *Maze, cell *Cell) bool {
-
+	time.Sleep(time.Second / 1000) // remove this line to not see visual generation
 	// If the cell is the exit cell, return true - the maze has been solved
 	if cell.Column == maze.Width-1 && cell.Row == maze.Height-1 {
 		cell.IsSearched = true
@@ -154,6 +187,12 @@ func recursiveSolve(maze *Maze, cell *Cell) bool {
 
 	// Mark the cell as searched
 	cell.IsSearched = true
+	// print walks for the cell
+	/* for _, walk := range maze.Walks {
+		if walk.From == cell {
+			fmt.Println("From: ", walk.From.Row, walk.From.Column, "To: ", walk.To.Row, walk.To.Column)
+		}
+	} */
 
 	// If the cell is not top row and the maze-gen algorithm has walked through the wall between these two cells, recursively solve the maze at the cell above
 	if cell.Row > 0 && slices.Contains(maze.Walks, Walk{From: cell, To: maze.Cells[cell.Row-1][cell.Column]}) {

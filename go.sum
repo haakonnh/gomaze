@@ -4,6 +4,8 @@ github.com/hajimehoshi/ebiten/v2 v2.6.5 h1:lALv+qhEK3CBWViyiGpz4YcR6slVJEjCiS7sE
 github.com/hajimehoshi/ebiten/v2 v2.6.5/go.mod h1:TZtorL713an00UW4LyvMeKD8uXWnuIuCPtlH11b0pgI=
 github.com/jezek/xgb v1.1.0 h1:wnpxJzP1+rkbGclEkmwpVFQWpuE2PUGNUzP8SbfFobk=
 github.com/jezek/xgb v1.1.0/go.mod h1:nrhwO0FX/enq75I7Y7G8iN1ubpSGZEiA3v9e9GyRFlk=
+github.com/spakin/disjoint v1.0.1 h1:5Uel9zibS3KM5F0RDIIwrUSaQbTnBMjf37D4s6tv3Gs=
+github.com/spakin/disjoint v1.0.1/go.mod h1:QSto0rbkWBC4daR4z0J0IrQhj/eQD5J5AXj61c7KbZs=
 github.com/yuin/goldmark v1.4.13/go.mod h1:6yULJ656Px+3vBD8DxQVa3kxgyrAnzto9xy5taEt/CY=
 golang.org/x/crypto v0.0.0-20190308221718-c2843e01d9a2/go.mod h1:djNgcEr1/C05ACkg1iLfiJU5Ep61QUkGW8qpdssI0+w=
 golang.org/x/crypto v0.0.0-20210921155107-089bfa567519/go.mod h1:GvvjBRRGRdwPK5ydBHafDWAxML/pGHZbMvKqRZ5+Abc=
