@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 	"math/rand"
-	"time"
+	"slices"
 )
 
 type Wall struct {
@@ -13,205 +13,175 @@ type Wall struct {
 }
 
 type Cell struct {
-	Row      int
-	Column   int
-	Visited  bool
-	Adjacent []*Cell
+	Row           int
+	Column        int
+	Visited       bool
+	Adjacent      []*Cell
+	WalkedThrough [4]bool // 0: top, 1: right, 2: bottom, 3: left
+	IsSearched    bool
 }
 
 type Maze struct {
 	Width  int
 	Height int
 	Cells  [][]*Cell
-	Walls  map[[2]*Cell]*Wall
+	Walks  []Walk // List of walls that have been walked through by the maze generation algorithm
 }
 
-type Coords struct {
-	X int
-	Y int
+// Walk is a struct that represents a wall that has been walked through by the maze generation algorithm
+type Walk struct {
+	From *Cell
+	To   *Cell
 }
 
+// InitMaze creates a maze with the given width and height
 func InitMaze(width, height int) *Maze {
+
+	// Create a maze with width x height cells and initialized Cells and Walks
 	maze := &Maze{
 		Width:  width,
 		Height: height,
 		Cells:  make([][]*Cell, height),
-		Walls:  make(map[[2]*Cell]*Wall),
+		Walks:  make([]Walk, 0),
 	}
+
+	// Create cells
 	for i := range maze.Cells {
 		maze.Cells[i] = make([]*Cell, width)
 		for j := range maze.Cells[i] {
 			maze.Cells[i][j] = &Cell{
-				Row:      i,
-				Column:   j,
-				Visited:  false,
-				Adjacent: make([]*Cell, 0),
+				Row:        i,
+				Column:     j,
+				Visited:    false,
+				Adjacent:   make([]*Cell, 0),
+				IsSearched: false,
 			}
 		}
 	}
-	// Populate adjacent cells and create corresponding walls
+
+	// Populate adjacent cells for each cell
 	for i := range maze.Cells {
 		for j := range maze.Cells[i] {
-			cell := maze.Cells[i][j]
-
-			// Populate upper adjacent cell and create wall
 			if i > 0 {
-				upperCell := maze.Cells[i-1][j]
-				upperCell.Adjacent = append(upperCell.Adjacent, cell)
-				cell.Adjacent = append(cell.Adjacent, upperCell)
-				wall := &Wall{Exists: true, Cell1: upperCell, Cell2: cell}
-				maze.Walls[[2]*Cell{upperCell, cell}] = wall
-				maze.Walls[[2]*Cell{cell, upperCell}] = wall
+				maze.Cells[i][j].Adjacent = append(maze.Cells[i][j].Adjacent, maze.Cells[i-1][j])
 			}
-
-			// Populate left adjacent cell and create wall
+			if i < height-1 {
+				maze.Cells[i][j].Adjacent = append(maze.Cells[i][j].Adjacent, maze.Cells[i+1][j])
+			}
 			if j > 0 {
-				leftCell := maze.Cells[i][j-1]
-				leftCell.Adjacent = append(leftCell.Adjacent, cell)
-				cell.Adjacent = append(cell.Adjacent, leftCell)
-				wall := &Wall{Exists: true, Cell1: leftCell, Cell2: cell}
-				maze.Walls[[2]*Cell{leftCell, cell}] = wall
-				maze.Walls[[2]*Cell{cell, leftCell}] = wall
+				maze.Cells[i][j].Adjacent = append(maze.Cells[i][j].Adjacent, maze.Cells[i][j-1])
 			}
-
-			// Populate lower adjacent cell and create wall
-			if i < maze.Height-1 {
-				lowerCell := maze.Cells[i+1][j]
-				lowerCell.Adjacent = append(lowerCell.Adjacent, cell)
-				cell.Adjacent = append(cell.Adjacent, lowerCell)
-				wall := &Wall{Exists: true, Cell1: lowerCell, Cell2: cell}
-				maze.Walls[[2]*Cell{lowerCell, cell}] = wall
-				maze.Walls[[2]*Cell{cell, lowerCell}] = wall
-			}
-
-			// Populate right adjacent cell and create wall
-			if j < maze.Width-1 {
-				rightCell := maze.Cells[i][j+1]
-				rightCell.Adjacent = append(rightCell.Adjacent, cell)
-				cell.Adjacent = append(cell.Adjacent, rightCell)
-				wall := &Wall{Exists: true, Cell1: rightCell, Cell2: cell}
-				maze.Walls[[2]*Cell{rightCell, cell}] = wall
-				maze.Walls[[2]*Cell{cell, rightCell}] = wall
+			if j < width-1 {
+				maze.Cells[i][j].Adjacent = append(maze.Cells[i][j].Adjacent, maze.Cells[i][j+1])
 			}
 		}
 	}
 
 	return maze
 }
+
+// Prim generates a maze using the Prim algorithm
 func (maze *Maze) Prim() {
 	// Choose the starting cell [0,0] and mark it as visited
-	startRow, startCol := 13, 13
-	currentCell := maze.Cells[startRow][startCol]
-	currentCell.Visited = true
-	unvisitedWalls := maze.getUnvisitedWalls(currentCell)
-	fmt.Println("Unvisited walls: ", len(unvisitedWalls))
-	for len(unvisitedWalls) > 0 {
-		time.Sleep(time.Second)
-		// Choose a random unvisited wall
-		shuffleWalls(unvisitedWalls)
-		randomWall := unvisitedWalls[0]
-		// Get the neighboring cell of the wall
-		neighbor := unvisitedWalls[0].getNeighbor(currentCell)
-		neighbor.Visited = true
+	startCell := maze.Cells[0][0]
+	startCell.Visited = true
 
-		// Mark the wall as non-existent
-		randomWall.Exists = false
-		// Because in the map we have the same wall for both cells, we need to mark the wall as non-existent for the neighbor cell as well
-		maze.markWallAsNonExistent(currentCell, neighbor)
-
-		// Add the neighboring cell's unvisited walls to the list
-		unvisitedWalls = append(unvisitedWalls, maze.getUnvisitedWalls(neighbor)...)
-
-		// Remove the current wall from the list
-		unvisitedWalls = unvisitedWalls[1:]
-	}
-}
-
-// getUnvisitedWalls returns a list of unvisited walls from the current cell
-func (maze *Maze) getUnvisitedWalls(cell *Cell) []*Wall {
-	unvisitedWalls := make([]*Wall, 0)
-	for _, neighbor := range cell.Adjacent {
-		// Check if the neighbor cell is unvisited
-		if !neighbor.Visited {
-			// Check if the wall between the current cell and its neighbor exists and is unvisited
-			wall := maze.Walls[[2]*Cell{cell, neighbor}]
-			// get coords of the wall
-
-			if wall != nil && wall.Exists && maze.Walls[[2]*Cell{neighbor, cell}].Exists {
-				unvisitedWalls = append(unvisitedWalls, wall)
-			}
-		}
-	}
-	return unvisitedWalls
-}
-
-// Get the walls associated with a cell
-func (maze *Maze) getWalls(cell *Cell) []*Wall {
-	walls := make([]*Wall, 0)
-if cell.Row > 0 {
-		walls = append(walls, maze.Walls[[2]*Cell{cell, maze.Cells[cell.Row-1][cell.Column]}])
-	}
-	if cell.Column > 0 {
-		walls = append(walls, maze.Walls[[2]*Cell{cell, maze.Cells[cell.Row][cell.Column-1]}])
-	}
-	if cell.Row < maze.Height-1 {
-		walls = append(walls, maze.Walls[[2]*Cell{cell, maze.Cells[cell.Row+1][cell.Column]}])
-	}
-	if cell.Column < maze.Width-1 {
-		walls = append(walls, maze.Walls[[2]*Cell{cell, maze.Cells[cell.Row][cell.Column+1]}])
+	// A slice of walks representing the currently possible walks from a cell in the Prim tree to a cell not in the tree
+	possibleWalks := make([]Walk, 0)
+	for _, cell := range startCell.Adjacent { // Add the adjacent walls of the starting cell to the list of possible walks
+		possibleWalks = append(possibleWalks, Walk{From: startCell, To: cell})
 	}
 
-	return walls
-}
+	// Visited cells represent the cells that have been visited by the Prim algorithm
+	visitedCells := make([]*Cell, 0)
+	visitedCells = append(visitedCells, startCell)
 
-// getNeighbor returns the neighboring cell of a wall
-func (wall *Wall) getNeighbor(cell *Cell) *Cell {
-	if wall.Cell1 == cell {
-		return wall.Cell2
-	}
-	if wall.Cell2 == cell {
-		return wall.Cell1
-	}
-	fmt.Println("Error: the cell is not a neighbor of the wall")
-	return nil
-}
+	// While there are still walks in the list of possible walks
+	for len(possibleWalks) > 0 {
+		//time.Sleep(time.Second / 5000) // remove this line to not see visual generation
 
-// getUnvisitedNeighbors returns the unvisited neighbors of a cell
-func (maze *Maze) getUnvisitedNeighbors(cell *Cell) []*Cell {
-	unvisitedNeighbors := make([]*Cell, 0)
-	for _, neighbor := range cell.Adjacent {
-		if !neighbor.Visited {
-			unvisitedNeighbors = append(unvisitedNeighbors, neighbor)
-		}
-	}
-	return unvisitedNeighbors
-}
+		// Choose a random walk from the list of possible walks
+		randIndex := rand.Intn(len(possibleWalks))
+		walk := possibleWalks[randIndex]
+		possibleWalks = append(possibleWalks[:randIndex], possibleWalks[randIndex+1:]...) // Remove the walk from the list of possible walks
 
-// markWallAsNonExistent marks the wall between two cells as non-existent
-func (maze *Maze) markWallAsNonExistent(cell1, cell2 *Cell) {
-	for _, neighbor := range cell1.Adjacent {
-		if neighbor == cell2 {
-			// Found the neighbor cell, mark the corresponding wall as non-existent
-			for _, wall := range maze.getWalls(cell1) {
-				if (wall.Cell1 == cell1 && wall.Cell2 == cell2) || (wall.Cell1 == cell2 && wall.Cell2 == cell1) {
-					wall.Exists = false
-					return
+		// If the cell on the other side of the walk has not been visited
+		if !walk.To.Visited {
+			walk.To.Visited = true
+
+			// Add the walk to the list of walks in the maze and add the walked-to cell to the tree
+			maze.Walks = append(maze.Walks, walk)
+			visitedCells = append(visitedCells, walk.To)
+
+			// Add the adjacent walls of the cell to the list of walls
+			for _, cell := range walk.To.Adjacent {
+				if !slices.Contains(visitedCells, cell) {
+					possibleWalks = append(possibleWalks, Walk{From: walk.To, To: cell})
 				}
 			}
 		}
 	}
+
 }
 
-// Shuffle the slice of cells to randomize traversal
-func shuffleNeighbors(neighbors []*Cell) {
-	rand.Shuffle(len(neighbors), func(i, j int) {
-		neighbors[i], neighbors[j] = neighbors[j], neighbors[i]
-	})
+// DFS maze solver algorithm
+func (maze *Maze) DFS() {
+	// Choose the starting cell [0,0] and mark it as visite
+	startCell := maze.Cells[0][0]
+
+	// Solve maze recursively (depth-first search)
+	var b bool = recursiveSolve(maze, startCell)
+
+	// Print if the maze was solved
+	if b {
+		fmt.Println("Solved")
+	}
 }
 
-// Shuffle the slice of walls to randomize traversal
-func shuffleWalls(walls []*Wall) {
-	rand.Shuffle(len(walls), func(i, j int) {
-		walls[i], walls[j] = walls[j], walls[i]
-	})
+// Recursive function to solve the maze with dfs
+func recursiveSolve(maze *Maze, cell *Cell) bool {
+
+	// If the cell is the exit cell, return true - the maze has been solved
+	if cell.Column == maze.Width-1 && cell.Row == maze.Height-1 {
+		cell.IsSearched = true
+		return true
+	}
+
+	// If the cell has been searched skip this cell
+	if cell.IsSearched {
+		return false
+	}
+
+	// Mark the cell as searched
+	cell.IsSearched = true
+
+	// If the cell is not top row and the maze-gen algorithm has walked through the wall between these two cells, recursively solve the maze at the cell above
+	if cell.Row > 0 && slices.Contains(maze.Walks, Walk{From: cell, To: maze.Cells[cell.Row-1][cell.Column]}) {
+		if recursiveSolve(maze, maze.Cells[cell.Row-1][cell.Column]) {
+			return true
+		}
+	}
+
+	// If the cell is not leftmost column and the maze-gen algorithm has walked through the wall between these two cells, recursively solve the maze at the cell to the left
+	if cell.Column > 0 && slices.Contains(maze.Walks, Walk{From: cell, To: maze.Cells[cell.Row][cell.Column-1]}) {
+		if recursiveSolve(maze, maze.Cells[cell.Row][cell.Column-1]) {
+			return true
+		}
+	}
+
+	// If the cell is not bottom row and the maze-gen algorithm has walked through the wall between these two cells, recursively solve the maze at the cell below
+	if cell.Row < maze.Height-1 && slices.Contains(maze.Walks, Walk{From: cell, To: maze.Cells[cell.Row+1][cell.Column]}) {
+		if recursiveSolve(maze, maze.Cells[cell.Row+1][cell.Column]) {
+			return true
+		}
+	}
+
+	// If the cell is not rightmost column and the maze-gen algorithm has walked through the wall between these two cells, recursively solve the maze at the cell to the right
+	if cell.Column < maze.Width-1 && slices.Contains(maze.Walks, Walk{From: cell, To: maze.Cells[cell.Row][cell.Column+1]}) {
+		if recursiveSolve(maze, maze.Cells[cell.Row][cell.Column+1]) {
+			return true
+		}
+	}
+	return false
+
 }
