@@ -19,7 +19,7 @@ func (g *Game) Update() error {
 }
 
 // Init maze with width x height cells
-var maze *Maze = InitMaze(63, 63)
+var maze *Maze = InitMaze(50, 50)
 
 func (g *Game) Draw(screen *ebiten.Image) {
 	//fmt.Println((ebiten.ActualFPS())) // fps tracker
@@ -135,6 +135,7 @@ func main() {
 		maze.Prim()
 		fmt.Println("Kruskal done")
 		maze.DFS()
+
 		// Signal that Prim's algorithm has finished
 		close(done)
 	}()

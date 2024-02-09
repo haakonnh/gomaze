@@ -102,7 +102,7 @@ func (maze *Maze) Prim() {
 
 	// While there are still walks in the list of possible walks
 	for len(possibleWalks) > 0 {
-		//time.Sleep(time.Second / 5000) // remove this line to not see visual generation
+		time.Sleep(time.Second / 5000) // remove this line to not see visual generation
 
 		// Choose a random walk from the list of possible walks
 		randIndex := rand.Intn(len(possibleWalks))
@@ -140,7 +140,7 @@ func (maze *Maze) Kruskal() {
 		}
 	}
 	for len(possibleWalks) > 0 {
-		//time.Sleep(time.Second / 100) // remove this line to not see visual generation
+		time.Sleep(time.Second / 100) // remove this line to not see visual generation
 		randIndex := rand.Intn(len(possibleWalks))
 		walk := possibleWalks[randIndex]
 		possibleWalks = append(possibleWalks[:randIndex], possibleWalks[randIndex+1:]...)
@@ -165,7 +165,7 @@ func (maze *Maze) DFS() {
 
 	// Print if the maze was solved
 	if b {
-		fmt.Println("Solved")
+		fmt.Println("DFS SOLVED")
 		return
 	}
 	fmt.Println("Not solved")
@@ -187,16 +187,10 @@ func recursiveSolve(maze *Maze, cell *Cell) bool {
 
 	// Mark the cell as searched
 	cell.IsSearched = true
-	// print walks for the cell
-	/* for _, walk := range maze.Walks {
-		if walk.From == cell {
-			fmt.Println("From: ", walk.From.Row, walk.From.Column, "To: ", walk.To.Row, walk.To.Column)
-		}
-	} */
 
-	// If the cell is not top row and the maze-gen algorithm has walked through the wall between these two cells, recursively solve the maze at the cell above
-	if cell.Row > 0 && slices.Contains(maze.Walks, Walk{From: cell, To: maze.Cells[cell.Row-1][cell.Column]}) {
-		if recursiveSolve(maze, maze.Cells[cell.Row-1][cell.Column]) {
+	// If the cell is not rightmost column and the maze-gen algorithm has walked through the wall between these two cells, recursively solve the maze at the cell to the right
+	if cell.Column < maze.Width-1 && slices.Contains(maze.Walks, Walk{From: cell, To: maze.Cells[cell.Row][cell.Column+1]}) {
+		if recursiveSolve(maze, maze.Cells[cell.Row][cell.Column+1]) {
 			return true
 		}
 	}
@@ -208,6 +202,13 @@ func recursiveSolve(maze *Maze, cell *Cell) bool {
 		}
 	}
 
+	// If the cell is not top row and the maze-gen algorithm has walked through the wall between these two cells, recursively solve the maze at the cell above
+	if cell.Row > 0 && slices.Contains(maze.Walks, Walk{From: cell, To: maze.Cells[cell.Row-1][cell.Column]}) {
+		if recursiveSolve(maze, maze.Cells[cell.Row-1][cell.Column]) {
+			return true
+		}
+	}
+
 	// If the cell is not bottom row and the maze-gen algorithm has walked through the wall between these two cells, recursively solve the maze at the cell below
 	if cell.Row < maze.Height-1 && slices.Contains(maze.Walks, Walk{From: cell, To: maze.Cells[cell.Row+1][cell.Column]}) {
 		if recursiveSolve(maze, maze.Cells[cell.Row+1][cell.Column]) {
@@ -215,12 +216,6 @@ func recursiveSolve(maze *Maze, cell *Cell) bool {
 		}
 	}
 
-	// If the cell is not rightmost column and the maze-gen algorithm has walked through the wall between these two cells, recursively solve the maze at the cell to the right
-	if cell.Column < maze.Width-1 && slices.Contains(maze.Walks, Walk{From: cell, To: maze.Cells[cell.Row][cell.Column+1]}) {
-		if recursiveSolve(maze, maze.Cells[cell.Row][cell.Column+1]) {
-			return true
-		}
-	}
 	return false
 
 }
